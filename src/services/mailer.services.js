@@ -1,14 +1,22 @@
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import envConfig from "../config/env.config.js";
 import { logger } from "../utils/logger.js";
 
-const isEmailConfigured = !!(envConfig.GOOGLE_APP_GMAIL && envConfig.GOOGLE_APP_PASSWORD);
+// ─── Transport setup ──────────────────────────────────────────────────────────
+// Priority: Resend (HTTPS - works everywhere) > SMTP (local only)
 
-export const transporter = isEmailConfigured
+const resend = process.env.RESEND_API_KEY
+    ? new Resend(process.env.RESEND_API_KEY)
+    : null;
+
+const isSmtpConfigured = !!(envConfig.GOOGLE_APP_GMAIL && envConfig.GOOGLE_APP_PASSWORD);
+
+export const transporter = (!resend && isSmtpConfigured)
     ? nodemailer.createTransport({
         host: "smtp.gmail.com",
         port: 587,
-        secure: false, // STARTTLS
+        secure: false,
         auth: {
             user: envConfig.GOOGLE_APP_GMAIL,
             pass: envConfig.GOOGLE_APP_PASSWORD,
@@ -19,11 +27,15 @@ export const transporter = isEmailConfigured
     })
     : null;
 
-if (transporter) {
-    logger.success("Email transporter ready");
+if (resend) {
+    logger.success("Email transport: Resend (HTTPS)");
+} else if (transporter) {
+    logger.success("Email transport: SMTP/Gmail");
+} else {
+    logger.warn("Email transport: not configured — emails will be skipped");
 }
 
-// ─── HTML Templates ────────────────────────────────────────────────────────────
+// ─── HTML Templates ───────────────────────────────────────────────────────────
 
 const baseLayout = (content) => `
 <!DOCTYPE html>
@@ -89,7 +101,7 @@ const templates = {
         <a href="https://xrobofly.com/signin" class="btn">Login Now</a>`),
 
     coupon: ({ name, couponCode, discountPercent, expiryDate }) => baseLayout(`
-        <h2>🎁 You have Earned a Coupon!</h2>
+        <h2>🎁 You Have Earned a Coupon!</h2>
         <p>Hi <strong>${name}</strong>, thanks for your order!</p>
         <div style="text-align:center"><div class="otp">${couponCode}</div></div>
         <div class="info">
@@ -105,36 +117,59 @@ const templates = {
         <a href="https://xrobofly.com/orders" class="btn">Track Order</a>`),
 };
 
-// ─── sendMail ──────────────────────────────────────────────────────────────────
+// ─── sendMail ─────────────────────────────────────────────────────────────────
 
 export const sendMail = async (to, subject, template, context = {}) => {
-    if (!isEmailConfigured || !transporter) {
-        logger.warn(`[EMAIL SKIPPED] Not configured. Would send "${subject}" to ${to}`);
-        return { messageId: 'skipped', accepted: [to] };
-    }
-
     const htmlFn = templates[template];
     if (!htmlFn) {
         logger.error(`[EMAIL] Unknown template: ${template}`);
-        return { messageId: 'unknown-template', accepted: [to] };
+        return { messageId: 'unknown-template' };
     }
 
-    try {
-        const info = await transporter.sendMail({
-            from: `XRoboFly <${envConfig.GOOGLE_APP_GMAIL}>`,
-            to,
-            subject,
-            html: htmlFn(context),
-        });
-        logger.success(`Email sent to ${to} — ${subject}`);
-        return info;
-    } catch (error) {
-        const msg = error?.message || String(error) || 'Unknown error';
-        logger.error(`Failed to send email to ${to}: ${msg}`);
-        if (process.env.NODE_ENV !== 'production') {
-            logger.warn('[DEV MODE] Email error suppressed.');
-            return { messageId: 'dev-error', accepted: [to] };
+    const html = htmlFn(context);
+
+    // 1. Try Resend (HTTPS — works on any cloud host)
+    if (resend) {
+        try {
+            const fromEmail = envConfig.GOOGLE_APP_GMAIL || "noreply@xrobofly.com";
+            const data = await resend.emails.send({
+                from: `XRoboFly <${fromEmail}>`,
+                to,
+                subject,
+                html,
+            });
+            logger.success(`Email sent via Resend to ${to} — ${subject}`);
+            return data;
+        } catch (error) {
+            const msg = error?.message || String(error);
+            logger.error(`Resend failed for ${to}: ${msg}`);
+            throw error;
         }
-        throw error;
     }
+
+    // 2. Fall back to SMTP (works locally, may be blocked on cloud hosts)
+    if (transporter) {
+        try {
+            const info = await transporter.sendMail({
+                from: `XRoboFly <${envConfig.GOOGLE_APP_GMAIL}>`,
+                to,
+                subject,
+                html,
+            });
+            logger.success(`Email sent via SMTP to ${to} — ${subject}`);
+            return info;
+        } catch (error) {
+            const msg = error?.message || String(error);
+            logger.error(`Failed to send email to ${to}: ${msg}`);
+            if (process.env.NODE_ENV !== 'production' && process.env.COOKIE_SECURE !== 'true') {
+                logger.warn('[DEV MODE] Email error suppressed.');
+                return { messageId: 'dev-error', accepted: [to] };
+            }
+            throw error;
+        }
+    }
+
+    // 3. Not configured
+    logger.warn(`[EMAIL SKIPPED] No transport configured. Would send "${subject}" to ${to}`);
+    return { messageId: 'skipped', accepted: [to] };
 };
