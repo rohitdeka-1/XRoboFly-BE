@@ -429,6 +429,8 @@ export const updateProduct = async (req, res) => {
 		if (req.body.tags) product.tags = req.body.tags;
 		if (req.body.rating !== undefined) product.rating = req.body.rating;
 		if (req.body.reviewCount !== undefined) product.reviewCount = req.body.reviewCount;
+		if (req.body.stock !== undefined) product.stock = req.body.stock;
+		if (req.body.isFeatured !== undefined) product.isFeatured = req.body.isFeatured;
 
 		const updatedProduct = await product.save();
 
