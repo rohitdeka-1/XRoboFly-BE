@@ -60,7 +60,8 @@ export const sendMail = async (to, subject, template, context = {}) => {
         logger.success(`Email sent successfully to ${to} - ${subject}`);
         return info;
     } catch (error) {
-        logger.error(`Failed to send email to ${to}:`, error.message);
+        const errMsg = error?.message || String(error) || 'Unknown error';
+        logger.error(`Failed to send email to ${to}:`, errMsg);
         // Don't throw error in development - just log it
         if (process.env.NODE_ENV !== 'production') {
             logger.warn('[DEV MODE] Email sending failed but continuing...');
