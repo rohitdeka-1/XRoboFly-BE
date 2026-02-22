@@ -132,12 +132,18 @@ export const sendMail = async (to, subject, template, context = {}) => {
     if (resend) {
         try {
             const from = process.env.EMAIL_FROM || "XRoboFly <noreply@xrobofly.com>";
-            const data = await resend.emails.send({
+            const { data, error } = await resend.emails.send({
                 from,
                 to,
                 subject,
                 html,
             });
+            // Resend SDK returns { data, error } instead of throwing — check explicitly
+            if (error) {
+                const msg = error?.message || JSON.stringify(error);
+                logger.error(`Resend failed for ${to}: [${error.statusCode}] ${msg}`);
+                throw new Error(`Resend error ${error.statusCode}: ${msg}`);
+            }
             logger.success(`Email sent via Resend to ${to} — ${subject}`);
             return data;
         } catch (error) {

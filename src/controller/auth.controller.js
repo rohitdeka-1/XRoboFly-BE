@@ -165,25 +165,20 @@ export const verifyOTP = async (req, res) => {
         await storeRefreshToken(user._id, refreshToken);
         setCookies(res, accessToken, refreshToken);
 
-        // Send welcome email
-        try {
-            await sendMail(
-                user.email,
-                "Welcome to XRoboFly - Your Account is Ready! 🎉",
-                "welcome",
-                {
-                    name: user.name,
-                    email: user.email,
-                    registrationDate: formatDate(),
-                    role: user.role.charAt(0).toUpperCase() + user.role.slice(1),
-                    frontendUrl: envConfig.FRONT_END || "http://localhost:5173",
-                    year: new Date().getFullYear()
-                }
-            );
-            logger.success("Welcome email sent successfully");
-        } catch (emailError) {
-            logger.error("Failed to send welcome email", emailError);
-        }
+        // Fire-and-forget welcome email — don't block the verify response
+        sendMail(
+            user.email,
+            "Welcome to XRoboFly - Your Account is Ready! 🎉",
+            "welcome",
+            {
+                name: user.name,
+                email: user.email,
+                registrationDate: formatDate(),
+                role: user.role.charAt(0).toUpperCase() + user.role.slice(1),
+                frontendUrl: envConfig.FRONT_END || "http://localhost:5173",
+                year: new Date().getFullYear()
+            }
+        ).catch(err => logger.error("Failed to send welcome email", err));
 
         res.status(200).json({
             user: {
@@ -268,33 +263,28 @@ export const login = async (req, res) => {
             await storeRefreshToken(user._id, refreshToken);
             setCookies(res, accessToken, refreshToken);
 
+            // Fire-and-forget — don't block the login response
             const ipAddress = getClientIp(req);
             const userAgent = req.headers['user-agent'] || '';
             const { browser, os, deviceInfo } = parseUserAgent(userAgent);
             const location = getLocationFromIp(ipAddress);
-
-            
-            try {
-                await sendMail(
-                    user.email,
-                    "🔐 New Login Alert - XRoboFly Account",
-                    "login",
-                    {
-                        name: user.name,
-                        email: user.email,
-                        loginTime: formatDate(),
-                        ipAddress: ipAddress,
-                        deviceInfo: deviceInfo,
-                        browser: browser,
-                        os: os,
-                        location: location,
-                        frontendUrl: envConfig.FRONT_END || "http://localhost:5173",
-                        year: new Date().getFullYear()
-                    }
-                );
-            } catch (emailError) {
-                logger.error("Failed to send login notification:", emailError.message);
-            }
+            sendMail(
+                user.email,
+                "🔐 New Login Alert - XRoboFly Account",
+                "login",
+                {
+                    name: user.name,
+                    email: user.email,
+                    loginTime: formatDate(),
+                    ipAddress: ipAddress,
+                    deviceInfo: deviceInfo,
+                    browser: browser,
+                    os: os,
+                    location: location,
+                    frontendUrl: envConfig.FRONT_END || "http://localhost:5173",
+                    year: new Date().getFullYear()
+                }
+            ).catch(err => logger.error("Failed to send login notification:", err.message));
 
             res.json({
                 user: {
@@ -421,23 +411,18 @@ export const changePassword = async (req, res) => {
         user.password = newPassword;
         await user.save();
 
-        // Send password change confirmation email
-        try {
-            await sendMail(
-                user.email,
-                "Password Changed Successfully - XRoboFly",
-                "password-reset-success",
-                {
-                    name: user.name,
-                    resetTime: formatDate(),
-                    frontendUrl: envConfig.FRONT_END || "http://localhost:5173",
-                    year: new Date().getFullYear()
-                }
-            );
-            logger.success("Password change confirmation sent");
-        } catch (emailError) {
-            logger.error("Failed to send password change confirmation", emailError);
-        }
+        // Fire-and-forget — don't block the response
+        sendMail(
+            user.email,
+            "Password Changed Successfully - XRoboFly",
+            "password-reset-success",
+            {
+                name: user.name,
+                resetTime: formatDate(),
+                frontendUrl: envConfig.FRONT_END || "http://localhost:5173",
+                year: new Date().getFullYear()
+            }
+        ).catch(err => logger.error("Failed to send password change confirmation", err));
 
         res.json({ message: "Password changed successfully" });
     } catch (error) {
@@ -558,23 +543,18 @@ export const resetPassword = async (req, res) => {
         user.otpExpires = undefined;
         await user.save();
 
-        // Send confirmation email
-        try {
-            await sendMail(
-                user.email,
-                "Password Reset Successful",
-                "password-reset-success",
-                {
-                    name: user.name,
-                    resetTime: formatDate(),
-                    frontendUrl: envConfig.FRONT_END || "http://localhost:5173",
-                    year: new Date().getFullYear()
-                }
-            );
-            logger.success("Password reset confirmation sent");
-        } catch (emailError) {
-            logger.error("Failed to send confirmation email", emailError);
-        }
+        // Fire-and-forget — don't block the response
+        sendMail(
+            user.email,
+            "Password Reset Successful",
+            "password-reset-success",
+            {
+                name: user.name,
+                resetTime: formatDate(),
+                frontendUrl: envConfig.FRONT_END || "http://localhost:5173",
+                year: new Date().getFullYear()
+            }
+        ).catch(err => logger.error("Failed to send confirmation email", err));
 
         res.status(200).json({
             message: "Password reset successfully. You can now login with your new password."
@@ -620,20 +600,15 @@ export const googleAuth = async (req, res) => {
 
             logger.success(`New Google user created: ${email}`);
 
-            // Send welcome email
-            try {
-                await sendMail(email, "Welcome to XRoboFly - Your Account is Ready! 🎉", "welcome", {
-                    name: user.name,
-                    email: user.email,
-                    registrationDate: formatDate(),
-                    role: user.role.charAt(0).toUpperCase() + user.role.slice(1),
-                    frontendUrl: envConfig.FRONT_END || "http://localhost:5173",
-                    year: new Date().getFullYear()
-                });
-                logger.success("Welcome email sent to new Google user");
-            } catch (emailError) {
-                logger.error("Failed to send welcome email", emailError);
-            }
+            // Fire-and-forget welcome email
+            sendMail(email, "Welcome to XRoboFly - Your Account is Ready! 🎉", "welcome", {
+                name: user.name,
+                email: user.email,
+                registrationDate: formatDate(),
+                role: user.role.charAt(0).toUpperCase() + user.role.slice(1),
+                frontendUrl: envConfig.FRONT_END || "http://localhost:5173",
+                year: new Date().getFullYear()
+            }).catch(err => logger.error("Failed to send welcome email", err));
         } else {
             // User exists - just log them in, don't modify their data
             // If they signed up with email/password, keep their original data
@@ -662,28 +637,24 @@ export const googleAuth = async (req, res) => {
         const { browser, os, deviceInfo } = parseUserAgent(userAgent);
         const location = getLocationFromIp(ipAddress);
 
-        try {
-            await sendMail(
-                user.email,
-                "🔐 New Login Alert - XRoboFly Account",
-                "login",
-                {
-                    name: user.name,
-                    email: user.email,
-                    loginTime: formatDate(),
-                    ipAddress: ipAddress,
-                    deviceInfo: deviceInfo,
-                    browser: browser,
-                    os: os,
-                    location: location,
-                    frontendUrl: envConfig.FRONT_END || "http://localhost:5173",
-                    year: new Date().getFullYear()
-                }
-            );
-            logger.success("Google login notification sent");
-        } catch (emailError) {
-            logger.error("Failed to send Google login notification:", emailError.message);
-        }
+        // Fire-and-forget — don't block the Google login response
+        sendMail(
+            user.email,
+            "🔐 New Login Alert - XRoboFly Account",
+            "login",
+            {
+                name: user.name,
+                email: user.email,
+                loginTime: formatDate(),
+                ipAddress: ipAddress,
+                deviceInfo: deviceInfo,
+                browser: browser,
+                os: os,
+                location: location,
+                frontendUrl: envConfig.FRONT_END || "http://localhost:5173",
+                year: new Date().getFullYear()
+            }
+        ).catch(err => logger.error("Failed to send Google login notification:", err.message));
 
         res.status(200).json({
             user: {
