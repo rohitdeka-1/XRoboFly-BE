@@ -131,14 +131,13 @@ export const updateCategory = async (req, res) => {
         if (isActive !== undefined) category.isActive = isActive;
         if (subcategories) category.subcategories = subcategories;
         
-        // Upload new cover image if provided
+        // Handle cover image
         if (coverImage && coverImage.startsWith('data:image')) {
             // Delete old image from cloudinary if exists
             if (category.coverImage) {
                 const publicId = category.coverImage.split('/').pop().split('.')[0];
                 await cloudinary.uploader.destroy(`categories/${publicId}`);
             }
-            
             const cloudinaryResponse = await cloudinary.uploader.upload(coverImage, { 
                 folder: "categories",
                 transformation: [
@@ -148,6 +147,13 @@ export const updateCategory = async (req, res) => {
                 ]
             });
             category.coverImage = cloudinaryResponse.secure_url;
+        } else if ('coverImage' in req.body && (coverImage === null || coverImage === '')) {
+            // Explicitly remove image
+            if (category.coverImage) {
+                const publicId = category.coverImage.split('/').pop().split('.')[0];
+                await cloudinary.uploader.destroy(`categories/${publicId}`);
+            }
+            category.coverImage = null;
         }
         
         await category.save();
@@ -261,14 +267,13 @@ export const updateSubcategory = async (req, res) => {
         if (order !== undefined) subcategory.order = order;
         if (isActive !== undefined) subcategory.isActive = isActive;
         
-        // Upload new cover image if provided
+        // Handle cover image
         if (coverImage && coverImage.startsWith('data:image')) {
             // Delete old image from cloudinary if exists
             if (subcategory.coverImage) {
                 const publicId = subcategory.coverImage.split('/').pop().split('.')[0];
                 await cloudinary.uploader.destroy(`categories/subcategories/${publicId}`);
             }
-            
             const cloudinaryResponse = await cloudinary.uploader.upload(coverImage, { 
                 folder: "categories/subcategories",
                 transformation: [
@@ -278,6 +283,12 @@ export const updateSubcategory = async (req, res) => {
                 ]
             });
             subcategory.coverImage = cloudinaryResponse.secure_url;
+        } else if ('coverImage' in req.body && (coverImage === null || coverImage === '')) {
+            if (subcategory.coverImage) {
+                const publicId = subcategory.coverImage.split('/').pop().split('.')[0];
+                await cloudinary.uploader.destroy(`categories/subcategories/${publicId}`);
+            }
+            subcategory.coverImage = null;
         }
         
         await category.save();
