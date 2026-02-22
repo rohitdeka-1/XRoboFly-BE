@@ -1,0 +1,10 @@
+
+node_modules
+.env
+
+# Documentation files
+SECURITY_AUDIT_REPORT.md
+SECURITY_IMPLEMENTATION_SUMMARY.md
+server/SECURITY_FIXES.md
+server/SECURITY_QUICK_REFERENCE.md
+server/POSTMAN_GUIDE.md

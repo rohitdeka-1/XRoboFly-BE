@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to XroboFly</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+        }
+        .header {
+            background: #ffffff;
+            padding: 40px 30px 30px;
+            text-align: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+        .header h1 {
+            color: #111827;
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .header p {
+            color: #6b7280;
+            font-size: 15px;
+        }
+        .content {
+            padding: 40px 30px;
+            background: #ffffff;
+        }
+        .welcome-message {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .welcome-message h2 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        .welcome-message p {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .user-info {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .user-info h3 {
+            color: #111827;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+            color: #374151;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #111827;
+        }
+        .info-value {
+            color: #6b7280;
+        }
+        .features {
+            margin: 30px 0;
+        }
+        .features h3 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .feature-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .feature-item {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid #111827;
+        }
+        .feature-item strong {
+            color: #111827;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .feature-item span {
+            color: #666;
+            font-size: 14px;
+        }
+        .cta-button {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .cta-button a {
+            display: inline-block;
+            background: #111827;
+            color: #ffffff;
+            padding: 15px 40px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: background 0.3s ease;
+        }
+        .cta-button a:hover {
+            background: #1f2937;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 25px;
+            text-align: center;
+            border-top: 1px solid #e0e0e0;
+        }
+        .footer p {
+            color: #999;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        .footer .social-links {
+            margin: 15px 0;
+        }
+        .footer .social-links a {
+            display: inline-block;
+            margin: 0 10px;
+            color: #111827;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .security-note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .security-note p {
+            color: #856404;
+            font-size: 14px;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🚁</div>
+            <h1>XroboFly</h1>
+            <p>Your Premium E-Commerce Platform</p>
+        </div>
+
+        <div class="content">
+            <div class="welcome-message">
+                <h2>Welcome Aboard, {{name}}! 🎉</h2>
+                <p>Thank you for joining XroboFly! We're thrilled to have you as part of our community.</p>
+            </div>
+
+            <div class="user-info">
+                <h3>📋 Account Details</h3>
+                <div class="info-row">
+                    <span class="info-label">Name:</span>
+                    <span class="info-value">{{name}}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Email:</span>
+                    <span class="info-value">{{email}}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Account Created:</span>
+                    <span class="info-value">{{registrationDate}}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Account Role:</span>
+                    <span class="info-value">{{role}}</span>
+                </div>
+            </div>
+
+            <div class="features">
+                <h3>✨ What's Waiting for You</h3>
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <strong>🛍️ Shop</strong>
+                        <span>Browse premium products</span>
+                    </div>
+                    <div class="feature-item">
+                        <strong>🛒 Cart</strong>
+                        <span>Easy checkout process</span>
+                    </div>
+                    <div class="feature-item">
+                        <strong>📦 Orders</strong>
+                        <span>Track your purchases</span>
+                    </div>
+                    <div class="feature-item">
+                        <strong>⭐ Reviews</strong>
+                        <span>Share your feedback</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cta-button">
+                <a href="{{frontendUrl}}">Start Shopping Now</a>
+            </div>
+
+            <div class="security-note">
+                <p><strong>⚠️ Security Notice:</strong> We never ask for your password via email. If you didn't create this account, please contact our support team immediately.</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© {{year}} XroboFly. All rights reserved.</p>
+            <div class="social-links">
+                <a href="#">Facebook</a>
+                <a href="#">Twitter</a>
+                <a href="#">Instagram</a>
+            </div>
+            <p>Need help? Contact us at <a href="mailto:support@ecom.com" style="color: #667eea;">support@ecom.com</a></p>
+        </div>
+    </div>
+</body>
+</html>

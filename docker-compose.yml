@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  xrobofly-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xrobofly-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - NODE_ENV=production
+      - PORT=8000
+    env_file:
+      - .env.production
+    restart: unless-stopped
+    networks:
+      - xrobofly-network
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health-check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: MongoDB local instance (if you want to use local DB instead of Atlas)
+  # mongodb:
+  #   image: mongo:6-alpine
+  #   container_name: xrobofly-mongodb
+  #   ports:
+  #     - "27017:27017"
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: admin
+  #     MONGO_INITDB_ROOT_PASSWORD: password
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #   networks:
+  #     - xrobofly-network
+  #   restart: unless-stopped
+
+networks:
+  xrobofly-network:
+    driver: bridge
+
+# volumes:
+#   mongodb_data:

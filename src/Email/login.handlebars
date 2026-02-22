@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Login Alert - XroboFly</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+        }
+        .header {
+            background: #ffffff;
+            padding: 40px 30px 30px;
+            text-align: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .logo {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+        .header h1 {
+            color: #111827;
+            font-size: 24px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .header p {
+            color: #6b7280;
+            font-size: 15px;
+        }
+        .alert-icon {
+            text-align: center;
+            padding: 30px 0 20px;
+        }
+        .alert-icon span {
+            font-size: 64px;
+        }
+        .content {
+            padding: 0 40px 40px;
+        }
+        .greeting {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .greeting h2 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .greeting p {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .login-details {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        .login-details h3 {
+            color: #111827;
+            margin-bottom: 20px;
+            font-size: 18px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            color: #111827;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+        }
+        .detail-label span {
+            margin-right: 8px;
+        }
+        .detail-value {
+            color: #6b7280;
+            font-weight: 500;
+            text-align: right;
+            max-width: 60%;
+            word-break: break-all;
+        }
+        .location-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .location-info h4 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        .location-item {
+            display: flex;
+            padding: 8px 0;
+        }
+        .location-item strong {
+            min-width: 120px;
+            color: #667eea;
+        }
+        .location-item span {
+            color: #666;
+        }
+        .security-warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 5px;
+        }
+        .security-warning h4 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .security-warning p {
+            color: #856404;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        .action-button {
+            text-align: center;
+            margin: 15px 0;
+        }
+        .action-button a {
+            display: inline-block;
+            background: #dc3545;
+            color: #ffffff;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .secure-note {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .secure-note p {
+            color: #155724;
+            font-size: 14px;
+            margin: 0;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 25px;
+            text-align: center;
+            border-top: 1px solid #e0e0e0;
+        }
+        .footer p {
+            color: #999;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        .footer a {
+            color: #111827;
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🚁</div>
+            <h1>Security Alert</h1>
+            <p>New Login Detected</p>
+        </div>
+
+        <div class="alert-icon">
+            <span>🔔</span>
+        </div>
+
+        <div class="content">
+            <div class="greeting">
+                <h2>Hello, {{name}}!</h2>
+                <p>We detected a new login to your XroboFly account. If this was you, great! If not, please take immediate action.</p>
+            </div>
+
+            <div class="login-details">
+                <h3>📊 Login Information</h3>
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <span>📅</span> Date & Time:
+                    </div>
+                    <div class="detail-value">{{loginTime}}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <span>🌐</span> IP Address:
+                    </div>
+                    <div class="detail-value">{{ipAddress}}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <span>💻</span> Device:
+                    </div>
+                    <div class="detail-value">{{deviceInfo}}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <span>📍</span> Location:
+                    </div>
+                    <div class="detail-value">{{location}}</div>
+                </div>
+            </div>
+
+            <div class="location-info">
+                <h4>🗺️ Additional Details</h4>
+                <div class="location-item">
+                    <strong>Browser:</strong>
+                    <span>{{browser}}</span>
+                </div>
+                <div class="location-item">
+                    <strong>Operating System:</strong>
+                    <span>{{os}}</span>
+                </div>
+                <div class="location-item">
+                    <strong>Email:</strong>
+                    <span>{{email}}</span>
+                </div>
+            </div>
+
+            <div class="secure-note">
+                <p><strong>✅ Was this you?</strong> No action needed. You can safely ignore this email.</p>
+            </div>
+
+            <div class="security-warning">
+                <h4>⚠️ Didn't recognize this login?</h4>
+                <p>If you didn't authorize this login, your account may be compromised. Please secure your account immediately by changing your password and reviewing your recent activity.</p>
+                <div class="action-button">
+                    <a href="{{frontendUrl}}/reset-password">Secure My Account Now</a>
+                </div>
+            </div>
+
+            <div class="secure-note">
+                <p><strong>🔒 Security Tip:</strong> Always use strong, unique passwords and enable two-factor authentication when available.</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>This is an automated security notification from XroboFly.</p>
+            <p>If you have any questions, contact us at <a href="mailto:security@ecom.com">security@ecom.com</a></p>
+            <p style="margin-top: 15px;">© {{year}} XroboFly. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
