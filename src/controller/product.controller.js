@@ -158,7 +158,7 @@ export const createProduct = async (req, res) => {
 		const { 
 			name, description, price, originalPrice, coverImage, images, 
 			category, subcategory, brand, stock, isAvailable, 
-			specs, tags, rating, reviewCount 
+			specs, tags, rating, reviewCount, isFeatured
 		} = req.body;
 
 		let coverImageUrl = "";
@@ -210,7 +210,13 @@ export const createProduct = async (req, res) => {
 			tags: tags || [],
 			rating: rating || 0,
 			reviewCount: reviewCount || 0,
+			isFeatured: isFeatured || false,
 		});
+
+		// If this product is featured, refresh the cache
+		if (isFeatured) {
+			await updateFeaturedProductsCache();
+		}
 
 		res.status(201).json({
 			success: true,
@@ -430,9 +436,15 @@ export const updateProduct = async (req, res) => {
 		if (req.body.rating !== undefined) product.rating = req.body.rating;
 		if (req.body.reviewCount !== undefined) product.reviewCount = req.body.reviewCount;
 		if (req.body.stock !== undefined) product.stock = req.body.stock;
+		const featuredChanged = req.body.isFeatured !== undefined && req.body.isFeatured !== product.isFeatured;
 		if (req.body.isFeatured !== undefined) product.isFeatured = req.body.isFeatured;
 
 		const updatedProduct = await product.save();
+
+		// Invalidate Redis cache whenever isFeatured changes
+		if (featuredChanged) {
+			await updateFeaturedProductsCache();
+		}
 
 		res.status(200).json({
 			success: true,

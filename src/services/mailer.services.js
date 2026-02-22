@@ -131,9 +131,9 @@ export const sendMail = async (to, subject, template, context = {}) => {
     // 1. Try Resend (HTTPS — works on any cloud host)
     if (resend) {
         try {
-            const fromEmail = envConfig.GOOGLE_APP_GMAIL || "noreply@xrobofly.com";
+            const from = process.env.EMAIL_FROM || "XRoboFly <noreply@xrobofly.com>";
             const data = await resend.emails.send({
-                from: `XRoboFly <${fromEmail}>`,
+                from,
                 to,
                 subject,
                 html,
