@@ -168,7 +168,7 @@ export const createCheckoutSession = async (req, res) => {
         customer_phone: customerDetails.phone,
       },
       order_meta: {
-        return_url: `${process.env.FRONTEND_URL || 'http://localhost:8080'}/payment-success?order_id={order_id}`,
+        return_url: `${(process.env.FRONTEND_URL || 'http://localhost:8080').split(',').find(u => u.startsWith('https://')) || (process.env.FRONTEND_URL || 'http://localhost:8080').split(',')[0].trim()}/payment-success?order_id={order_id}`,
         notify_url: `${process.env.BACKEND_URL || 'http://localhost:8000'}/api/payment/webhook`,
       },
       order_note: `XRoboFly Order - ${orderProducts.length} items`,
