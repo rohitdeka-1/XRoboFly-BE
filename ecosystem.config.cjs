@@ -39,7 +39,7 @@ module.exports = {
       ref: 'origin/main',
       repo: 'https://github.com/rohitdeka-1/XRoboFly-BE.git',
       path: '/home/xrobofly/app',
-      'post-deploy': 'npm install && pm2 startOrRestart ecosystem.config.js --env production'
+      'post-deploy': 'npm install && pm2 startOrRestart ecosystem.config.cjs --env production'
     }
   }
 };
