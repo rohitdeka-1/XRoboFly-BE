@@ -11,6 +11,7 @@ import analyticsRouter from "./analytics.route.js";
 import shiprocketRoutes from "./shiprocket.route.js";
 import userRoutes from "./user.route.js";
 import categoryRoutes from "./category.route.js";
+import bannerRouter from "./banner.route.js";
 
 const router = Router();
 
@@ -26,6 +27,7 @@ router.use("/analytics", analyticsRouter);
 router.use("/shipping", shiprocketRoutes);
 router.use("/user", userRoutes);
 router.use("/category", categoryRoutes);
+router.use("/banner", bannerRouter);
 
 export default router;
 
