@@ -4,7 +4,7 @@ import { Product } from "../models/Product.model.js";
 import { User } from "../models/User.model.js";
 import { sendMail } from "../services/mailer.services.js";
 import Coupon from "../models/Coupon.model.js";
-import { createShipment } from "./shiprocket.controller.js";
+import { createShipmentForOrder } from "./shiprocket.controller.js";
 
 // Normalize Cashfree payment_group to our payment method
 const normalizePaymentMethod = (paymentGroup) => {
@@ -311,30 +311,23 @@ export const checkoutSuccess = async (req, res) => {
 
     // Send order confirmation email
     try {
-      await sendMail({
-        to: orderData.customerDetails.email,
-        subject: "Order Confirmation - XRoboFly",
-        template: "orderConfirmation",
-        context: {
-          customerName: orderData.customerDetails.name,
+      await sendMail(
+        orderData.customerDetails.email,
+        "Order Confirmation - XRoboFly",
+        "orderConfirmation",
+        {
+          name: orderData.customerDetails.name,
           orderId: newOrder._id,
-          orderDate: new Date().toLocaleDateString(),
-          products: orderData.products,
-          subtotal: orderData.subtotal,
-          shipping: orderData.shipping,
-          tax: orderData.tax,
-          discount: orderData.discount,
           totalAmount: orderData.totalAmount,
-          shippingAddress: orderData.shippingAddress,
-        },
-      });
+        }
+      );
     } catch (emailError) {
       console.error("Failed to send order confirmation email:", emailError);
     }
 
     // Create Shiprocket shipment
     try {
-      await createShipment(newOrder._id);
+      await createShipmentForOrder(newOrder._id);
     } catch (shipmentError) {
       console.error("Failed to create Shiprocket shipment:", shipmentError);
     }
@@ -434,7 +427,7 @@ async function createNewCoupon(userId, email, orderId) {
     await Coupon.create({
       code: couponCode,
       discountPercentage: 5,
-      expiryDate,
+      expirationDate: expiryDate,
       isActive: true,
       userId,
       usageLimit: 1,
@@ -442,17 +435,17 @@ async function createNewCoupon(userId, email, orderId) {
     });
 
     // Send coupon email
-    await sendMail({
-      to: email,
-      subject: "You've Earned a Discount Coupon! - XRoboFly",
-      template: "coupon",
-      context: {
+    await sendMail(
+      email,
+      "You've Earned a Discount Coupon! - XRoboFly",
+      "coupon",
+      {
+        name: "Valued Customer",
         couponCode,
-        discountPercentage: 5,
+        discountPercent: 5,
         expiryDate: expiryDate.toLocaleDateString(),
-        orderId,
-      },
-    });
+      }
+    );
 
     console.log("✅ Coupon created and sent:", couponCode);
   } catch (error) {

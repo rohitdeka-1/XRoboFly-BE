@@ -52,6 +52,10 @@ const userSchema = new mongoose.Schema(
         otpExpires: {
             type: Date,
         },
+        otpAttempts: {
+            type: Number,
+            default: 0,
+        },
         googleId: {
             type: String,
             unique: true,

@@ -43,34 +43,33 @@ app.use((req, res, next) => {
     })(req, res, next);
 });
 
-// Rate limiting - Global (COMMENTED OUT FOR DEVELOPMENT)
-// const globalLimiter = rateLimit({
-//     windowMs: 15 * 60 * 1000, // 15 minutes
-//     max: 100, // Limit each IP to 100 requests per windowMs
-//     message: "Too many requests from this IP, please try again later.",
-//     standardHeaders: true,
-//     legacyHeaders: false,
-//     // Skip rate limiting for shipping webhook
-//     skip: (req) => req.originalUrl === '/api/v1/shipping/webhook'
-// });
+// Rate limiting - Global
+const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 200,
+    message: "Too many requests from this IP, please try again later.",
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.originalUrl === '/api/v1/shipping/webhook'
+});
 
-// Rate limiting - Auth routes (stricter) (COMMENTED OUT FOR DEVELOPMENT)
-// const authLimiter = rateLimit({
-//     windowMs: 15 * 60 * 1000, // 15 minutes
-//     max: 5, // Limit each IP to 5 login attempts per windowMs
-//     message: "Too many login attempts, please try again after 15 minutes.",
-//     skipSuccessfulRequests: true,
-// });
+// Rate limiting - Auth routes (stricter)
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: "Too many login attempts, please try again after 15 minutes.",
+    skipSuccessfulRequests: true,
+});
 
-// Rate limiting - OTP routes (very strict) (COMMENTED OUT FOR DEVELOPMENT)
-// const otpLimiter = rateLimit({
-//     windowMs: 15 * 60 * 1000, // 15 minutes
-//     max: 3, // Only 3 OTP attempts
-//     message: "Too many OTP attempts, please try again after 15 minutes.",
-// });
+// Rate limiting - OTP routes (very strict)
+const otpLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: "Too many OTP attempts, please try again after 15 minutes.",
+});
 
-// Apply global rate limiter (COMMENTED OUT FOR DEVELOPMENT)
-// app.use(globalLimiter);
+// Apply global rate limiter
+app.use(globalLimiter);
 
 // Body parser with size limits (prevent DoS attacks)
 // Note: Increased to 50mb to support product uploads with images
@@ -154,9 +153,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Store rate limiters for use in routes (COMMENTED OUT FOR DEVELOPMENT)
-// app.set('authLimiter', authLimiter);
-// app.set('otpLimiter', otpLimiter);
+// Store rate limiters for use in routes
+app.set('authLimiter', authLimiter);
+app.set('otpLimiter', otpLimiter);
 
 
 app.get("/health-check", (req, res) => {

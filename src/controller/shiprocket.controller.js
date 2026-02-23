@@ -5,7 +5,86 @@ import { User } from '../models/User.model.js';
 import { logger } from '../utils/logger.js';
 import mongoose from 'mongoose';
 
-// Create shipment for an order
+/**
+ * Internal helper — creates a Shiprocket shipment for a given order ID.
+ * Can be called programmatically without an Express req/res context.
+ * Returns { success, data } or throws on error.
+ */
+export const createShipmentForOrder = async (orderId) => {
+    if (!orderId || !mongoose.Types.ObjectId.isValid(orderId.toString())) {
+        throw new Error('Invalid order ID format');
+    }
+
+    const order = await Order.findById(orderId).populate('user').populate('products.product');
+
+    if (!order) {
+        throw new Error('Order not found');
+    }
+
+    // Skip if shipment already created
+    if (order.shipment?.shiprocketOrderId) {
+        logger.info('Shipment already exists for order', orderId);
+        return { success: true, data: order.shipment };
+    }
+
+    // Prepare order data for Shiprocket
+    const orderData = {
+        orderId: order._id.toString(),
+        orderDate: order.createdAt.toISOString().split('T')[0],
+        email: order.user.email,
+        billingAddress: order.billingAddress,
+        shippingAddress: order.shippingAddress,
+        shippingIsBilling: JSON.stringify(order.billingAddress) === JSON.stringify(order.shippingAddress),
+        items: order.products.map(item => ({
+            name: item.product.name,
+            productId: item.product._id.toString(),
+            sku: item.product.sku || item.product._id.toString(),
+            quantity: item.quantity,
+            price: item.price,
+            discount: 0,
+            tax: 0,
+            hsn: item.product.hsn || 0
+        })),
+        paymentMethod: 'Prepaid',
+        shippingCharges: 0,
+        discount: 0,
+        subtotal: order.totalAmount,
+        weight: calculateTotalWeight(order.products),
+        dimensions: {
+            length: 10,
+            breadth: 10,
+            height: 10
+        }
+    };
+
+    const result = await shiprocketService.createOrder(orderData);
+
+    if (!result.success) {
+        throw new Error(result.error || 'Failed to create shipment in Shiprocket');
+    }
+
+    // Persist shipment details on the order
+    order.shipment = {
+        shiprocketOrderId: result.orderId,
+        shipmentId: result.shipmentId,
+        status: result.status,
+        statusCode: result.statusCode,
+        createdAt: new Date()
+    };
+    await order.save();
+
+    logger.success('Shipment created successfully');
+    return {
+        success: true,
+        data: {
+            orderId: result.orderId,
+            shipmentId: result.shipmentId,
+            status: result.status
+        }
+    };
+};
+
+// Create shipment — Express route handler
 export const createShipment = async (req, res) => {
     try {
         const { orderId } = req.body;
@@ -18,91 +97,18 @@ export const createShipment = async (req, res) => {
             });
         }
 
-        // Fetch order details
-        const order = await Order.findById(orderId).populate('user').populate('products.product');
-        
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                message: 'Order not found'
-            });
-        }
-
-        // Check if shipment already exists
-        if (order.shipment?.shiprocketOrderId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Shipment already created for this order'
-            });
-        }
-
-        // Prepare order data for Shiprocket
-        const orderData = {
-            orderId: order._id.toString(),
-            orderDate: order.createdAt.toISOString().split('T')[0],
-            email: order.user.email,
-            billingAddress: order.billingAddress,
-            shippingAddress: order.shippingAddress,
-            shippingIsBilling: JSON.stringify(order.billingAddress) === JSON.stringify(order.shippingAddress),
-            items: order.products.map(item => ({
-                name: item.product.name,
-                productId: item.product._id.toString(),
-                sku: item.product.sku || item.product._id.toString(),
-                quantity: item.quantity,
-                price: item.price,
-                discount: 0,
-                tax: 0,
-                hsn: item.product.hsn || 0
-            })),
-            paymentMethod: 'Prepaid',
-            shippingCharges: 0,
-            discount: 0,
-            subtotal: order.totalAmount,
-            weight: calculateTotalWeight(order.products),
-            dimensions: {
-                length: 10,
-                breadth: 10,
-                height: 10
-            }
-        };
-
-        // Create shipment in Shiprocket
-        const result = await shiprocketService.createOrder(orderData);
-
-        if (!result.success) {
-            return res.status(500).json({
-                success: false,
-                message: 'Failed to create shipment',
-                error: result.error
-            });
-        }
-
-        // Update order with shipment details
-        order.shipment = {
-            shiprocketOrderId: result.orderId,
-            shipmentId: result.shipmentId,
-            status: result.status,
-            statusCode: result.statusCode,
-            createdAt: new Date()
-        };
-        await order.save();
-
-        logger.success('Shipment created successfully');
+        const result = await createShipmentForOrder(orderId);
 
         res.status(200).json({
             success: true,
             message: 'Shipment created successfully',
-            data: {
-                orderId: result.orderId,
-                shipmentId: result.shipmentId,
-                status: result.status
-            }
+            data: result.data
         });
     } catch (error) {
         logger.error('Error creating shipment', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to create shipment'
+            message: error.message || 'Failed to create shipment'
         });
     }
 };

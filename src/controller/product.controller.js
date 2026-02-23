@@ -446,9 +446,10 @@ export const updateProduct = async (req, res) => {
 
 		const updatedProduct = await product.save();
 
-		// Invalidate Redis cache whenever isFeatured changes
-		if (featuredChanged) {
-			await updateFeaturedProductsCache();
+		// Invalidate Redis cache if this product is featured (any field update affects the cache)
+		// OR if the isFeatured flag itself changed
+		if (product.isFeatured || featuredChanged) {
+			await redis.del("featured_products");
 		}
 
 		res.status(200).json({

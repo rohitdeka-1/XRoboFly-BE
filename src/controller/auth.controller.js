@@ -7,8 +7,19 @@ import envConfig from "../config/env.config.js";
 import { generateOTP, getOTPExpiry } from "../utils/otp.js";
 import { logger } from "../utils/logger.js";
 import { OAuth2Client } from "google-auth-library";
+import crypto from "crypto";
 
 const client = new OAuth2Client(envConfig.GOOGLE_CLIENT_ID);
+
+// Hash OTP before storing — prevents plaintext exposure if DB is compromised
+const hashOTP = (otp) => crypto.createHash('sha256').update(String(otp)).digest('hex');
+
+// Shared cookie options
+const cookieOpts = () => ({
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: isSecure ? "none" : "lax",
+});
 
 const generateTokens = (userId) => {
 
@@ -62,9 +73,10 @@ export const signup = async (req, res) => {
 
             userExists.name = name;
             userExists.password = password; // Will be hashed by pre-save middleware
-            userExists.verificationOTP = otp;
+            userExists.verificationOTP = hashOTP(otp);
             userExists.userPhone = userPhone;
             userExists.otpExpires = otpExpires;
+            userExists.otpAttempts = 0;
             await userExists.save();
 
             
@@ -102,8 +114,9 @@ export const signup = async (req, res) => {
             userPhone,
             password,
             isVerified: false,
-            verificationOTP: otp,
-            otpExpires: otpExpires
+            verificationOTP: hashOTP(otp),
+            otpExpires: otpExpires,
+            otpAttempts: 0
         });
 
         try {
@@ -147,18 +160,27 @@ export const verifyOTP = async (req, res) => {
             return res.status(400).json({ message: "User is already verified" });
         }
 
-        // Check if OTP matches
-        if (user.verificationOTP !== otp) {
-            return res.status(400).json({ message: "Invalid OTP" });
+        // Check OTP attempt lockout (max 5)
+        if ((user.otpAttempts || 0) >= 5) {
+            return res.status(429).json({ message: "Too many incorrect OTP attempts. Please request a new OTP." });
         }
 
         if (user.otpExpires < new Date()) {
             return res.status(400).json({ message: "OTP has expired. Please request a new one." });
         }
 
+        // Compare against stored hash
+        if (user.verificationOTP !== hashOTP(otp)) {
+            user.otpAttempts = (user.otpAttempts || 0) + 1;
+            await user.save();
+            const remaining = 5 - user.otpAttempts;
+            return res.status(400).json({ message: `Invalid OTP. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.` });
+        }
+
         user.isVerified = true;
         user.verificationOTP = undefined;
         user.otpExpires = undefined;
+        user.otpAttempts = 0;
         await user.save();
 
         const { accessToken, refreshToken } = generateTokens(user._id);
@@ -212,8 +234,9 @@ export const resendOTP = async (req, res) => {
         const otp = generateOTP();
         const otpExpires = getOTPExpiry();
 
-        user.verificationOTP = otp;
+        user.verificationOTP = hashOTP(otp);
         user.otpExpires = otpExpires;
+        user.otpAttempts = 0;
         await user.save();
 
         // Send OTP email
@@ -312,8 +335,9 @@ export const logout = async (req, res) => {
             await redis.del(`refresh_token:${decoded.userId}`);
         }
 
-        res.clearCookie("accessToken");
-        res.clearCookie("refreshToken"); 
+        const opts = cookieOpts();
+        res.clearCookie("accessToken", opts);
+        res.clearCookie("refreshToken", opts);
         res.json({ message: "Logged out successfully" });
     } catch (error) {
         console.log("Error in logout controller", error.message);
@@ -336,14 +360,14 @@ export const refreshToken = async (req, res) => {
             return res.status(401).json({ message: "Invalid refresh token" });
         }
 
-        const accessToken = jwt.sign({ userId: decoded.userId }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15m" });
+        // Rotate both tokens — invalidates the old refresh token
+        const newAccessToken = jwt.sign({ userId: decoded.userId }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15m" });
+        const newRefreshToken = jwt.sign({ userId: decoded.userId }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "7d" });
+        await storeRefreshToken(decoded.userId, newRefreshToken);
 
-        res.cookie("accessToken", accessToken, {
-            httpOnly: true,
-            secure: isSecure,
-            sameSite: isSecure ? "none" : "lax",
-            maxAge: 15 * 60 * 1000,
-        });
+        const base = cookieOpts();
+        res.cookie("accessToken", newAccessToken, { ...base, maxAge: 15 * 60 * 1000 });
+        res.cookie("refreshToken", newRefreshToken, { ...base, maxAge: 7 * 24 * 60 * 60 * 1000 });
 
         res.json({ message: "Token refreshed successfully" });
     } catch (error) {
@@ -398,6 +422,14 @@ export const changePassword = async (req, res) => {
             return res.status(400).json({ message: "Please provide current and new password" });
         }
 
+        if (newPassword.length < 8) {
+            return res.status(400).json({ message: "New password must be at least 8 characters long" });
+        }
+
+        if (newPassword === currentPassword) {
+            return res.status(400).json({ message: "New password must be different from your current password" });
+        }
+
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found" });
@@ -440,20 +472,21 @@ export const forgotPassword = async (req, res) => {
         }
 
         const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(404).json({ message: "No account found with this email address" });
-        }
-
-        if (!user.isVerified) {
-            return res.status(400).json({ message: "Please verify your email first before resetting password" });
+        // Generic response — never reveal whether this email is registered (prevents enumeration)
+        if (!user || !user.isVerified) {
+            return res.status(200).json({
+                message: "If an account exists with this email, you will receive an OTP shortly.",
+                email
+            });
         }
 
         // Generate OTP for password reset
         const otp = generateOTP();
         const otpExpires = getOTPExpiry();
 
-        user.verificationOTP = otp;
+        user.verificationOTP = hashOTP(otp);
         user.otpExpires = otpExpires;
+        user.otpAttempts = 0;
         await user.save();
 
         // Send OTP email
@@ -498,17 +531,38 @@ export const verifyResetOTP = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        if (user.verificationOTP !== otp) {
-            return res.status(400).json({ message: "Invalid OTP" });
+        // Check OTP attempt lockout
+        if ((user.otpAttempts || 0) >= 5) {
+            return res.status(429).json({ message: "Too many incorrect attempts. Please request a new OTP." });
         }
 
         if (user.otpExpires < new Date()) {
             return res.status(400).json({ message: "OTP has expired. Please request a new one." });
         }
 
+        if (user.verificationOTP !== hashOTP(otp)) {
+            user.otpAttempts = (user.otpAttempts || 0) + 1;
+            await user.save();
+            const remaining = 5 - user.otpAttempts;
+            return res.status(400).json({ message: `Invalid OTP. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.` });
+        }
+
+        // Clear OTP after verified — prevents replay
+        user.verificationOTP = undefined;
+        user.otpExpires = undefined;
+        user.otpAttempts = 0;
+        await user.save();
+
+        // Issue a short-lived signed reset token — client must present this to reset password
+        const resetToken = jwt.sign(
+            { email: user.email, purpose: 'password_reset' },
+            process.env.ACCESS_TOKEN_SECRET,
+            { expiresIn: '10m' }
+        );
+
         res.status(200).json({
             message: "OTP verified successfully. You can now reset your password.",
-            email: user.email
+            resetToken
         });
     } catch (error) {
         logger.error("Error in verifyResetOTP controller", error);
@@ -518,29 +572,35 @@ export const verifyResetOTP = async (req, res) => {
 
 export const resetPassword = async (req, res) => {
     try {
-        const { email, otp, newPassword } = req.body;
+        const { resetToken, newPassword } = req.body;
 
-        if (!email || !otp || !newPassword) {
-            return res.status(400).json({ message: "Please provide email, OTP, and new password" });
+        if (!resetToken || !newPassword) {
+            return res.status(400).json({ message: "Please provide a reset token and new password" });
         }
 
-        const user = await User.findOne({ email });
+        if (newPassword.length < 8) {
+            return res.status(400).json({ message: "Password must be at least 8 characters long" });
+        }
+
+        // Verify the signed reset token issued after OTP verification
+        let decoded;
+        try {
+            decoded = jwt.verify(resetToken, process.env.ACCESS_TOKEN_SECRET);
+        } catch {
+            return res.status(400).json({ message: "Invalid or expired reset token. Please start over." });
+        }
+
+        if (decoded.purpose !== 'password_reset') {
+            return res.status(400).json({ message: "Invalid reset token" });
+        }
+
+        const user = await User.findOne({ email: decoded.email });
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        if (user.verificationOTP !== otp) {
-            return res.status(400).json({ message: "Invalid OTP" });
-        }
-
-        if (user.otpExpires < new Date()) {
-            return res.status(400).json({ message: "OTP has expired. Please request a new one." });
-        }
-
-        // Reset password and clear OTP
+        // Reset password
         user.password = newPassword;
-        user.verificationOTP = undefined;
-        user.otpExpires = undefined;
         await user.save();
 
         // Fire-and-forget — don't block the response
@@ -594,7 +654,7 @@ export const googleAuth = async (req, res) => {
                 googleId,
                 isVerified: true, // Google users are pre-verified
                 image: picture,
-                password: Math.random().toString(36).slice(-12) + "!A1a", // Random strong password
+                password: crypto.randomBytes(16).toString('hex') + "!A1a", // Cryptographically secure random password
             });
             await user.save();
 
