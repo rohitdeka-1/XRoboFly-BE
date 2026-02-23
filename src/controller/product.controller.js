@@ -265,6 +265,11 @@ export const deleteProduct = async (req, res) => {
 
 		await Product.findByIdAndDelete(req.params.id);
 
+		// Invalidate Redis featured products cache so deleted products don't persist
+		if (product.isFeatured) {
+			await redis.del("featured_products");
+		}
+
 		res.status(200).json({ 
 			success: true,
 			message: "Product and all images deleted successfully" 
