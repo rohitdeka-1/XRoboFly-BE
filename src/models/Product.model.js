@@ -97,6 +97,12 @@ const productSchema = new mongoose.Schema({
         type: [String],
         default: [],
     },
+    weight: {
+        type: Number,
+        default: 500,
+        min: 0,
+        comment: 'Weight in grams',
+    },
 }, {
     timestamps: true,
 });

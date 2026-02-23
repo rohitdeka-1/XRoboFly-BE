@@ -256,7 +256,10 @@ export const updateTrackingUrl = async (req, res) => {
 
 		const order = await Order.findByIdAndUpdate(
 			orderId,
-			{ trackingUrl },
+			// Also mark as shipped when a tracking URL is added
+			trackingUrl
+				? { trackingUrl, orderStatus: 'shipped' }
+				: { trackingUrl },
 			{ new: true }
 		).populate('user', 'name email')
 		 .populate('products.product', 'name coverImage price');

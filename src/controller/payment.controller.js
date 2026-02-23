@@ -117,7 +117,28 @@ export const createCheckoutSession = async (req, res) => {
     // Prices stored in DB are GST-inclusive (5%).
     // Extract base + GST for display; total charged = incl-GST price + shipping.
     const subtotalInclGST = subtotal; // subtotal = sum of product.price * qty (GST-inclusive)
-    const shipping = subtotalInclGST > 5000 ? 0 : 99;
+    
+    // Calculate total weight (grams)
+    let totalWeight = 0;
+    for (let i = 0; i < products.length; i++) {
+      totalWeight += (dbProducts[i].weight || 500) * products[i].quantity;
+    }
+    
+    // Shipping logic:
+    // - Free for orders above ₹5000
+    // - ≤500g: ₹130
+    // - >500g: ₹130 + ₹13 per additional 100g (rounded up)
+    let shipping = 0;
+    if (subtotalInclGST <= 5000) {
+      if (totalWeight <= 500) {
+        shipping = 130;
+      } else {
+        const extraGrams = totalWeight - 500;
+        const extra100g = Math.ceil(extraGrams / 100);
+        shipping = 130 + (extra100g * 13);
+      }
+    }
+    
     const baseSubtotal = Math.round(subtotalInclGST / 1.05); // pre-GST amount
     const tax = subtotalInclGST - baseSubtotal;               // 5% GST already included
     const discount = 0;
