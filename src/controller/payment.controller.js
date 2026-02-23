@@ -114,14 +114,14 @@ export const createCheckoutSession = async (req, res) => {
       });
     }
 
-    // Calculate shipping
-    const shipping = subtotal > 5000 ? 0 : 99;
-
-    // Calculate tax (18% GST)
-    const tax = Math.round(subtotal * 0.18);
-
+    // Prices stored in DB are GST-inclusive (5%).
+    // Extract base + GST for display; total charged = incl-GST price + shipping.
+    const subtotalInclGST = subtotal; // subtotal = sum of product.price * qty (GST-inclusive)
+    const shipping = subtotalInclGST > 5000 ? 0 : 99;
+    const baseSubtotal = Math.round(subtotalInclGST / 1.05); // pre-GST amount
+    const tax = subtotalInclGST - baseSubtotal;               // 5% GST already included
     const discount = 0;
-    const totalAmount = subtotal + shipping + tax;
+    const totalAmount = subtotalInclGST + shipping;           // no extra tax added
 
     // Generate unique order ID
     const orderId = `XRF_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
@@ -159,9 +159,9 @@ export const createCheckoutSession = async (req, res) => {
         customerDetails,
         shippingAddress,
         products: orderProducts,
-        subtotal,
+        subtotal: baseSubtotal,   // pre-GST base for display in email
         shipping,
-        tax,
+        tax,                      // 5% GST extracted from inclusive price
         discount,
         totalAmount,
         createdAt: Date.now(),
