@@ -158,7 +158,7 @@ export const createProduct = async (req, res) => {
 		const { 
 			name, description, price, originalPrice, coverImage, images, 
 			category, subcategory, brand, stock, isAvailable, 
-			specs, tags, rating, reviewCount, isFeatured
+			specs, tags, rating, reviewCount, isFeatured, weight
 		} = req.body;
 
 		let coverImageUrl = "";
@@ -211,6 +211,7 @@ export const createProduct = async (req, res) => {
 			rating: rating || 0,
 			reviewCount: reviewCount || 0,
 			isFeatured: isFeatured || false,
+			weight: weight || 500,
 		});
 
 		// If this product is featured, refresh the cache
@@ -441,6 +442,7 @@ export const updateProduct = async (req, res) => {
 		if (req.body.rating !== undefined) product.rating = req.body.rating;
 		if (req.body.reviewCount !== undefined) product.reviewCount = req.body.reviewCount;
 		if (req.body.stock !== undefined) product.stock = req.body.stock;
+		if (req.body.weight !== undefined) product.weight = req.body.weight;
 		const featuredChanged = req.body.isFeatured !== undefined && req.body.isFeatured !== product.isFeatured;
 		if (req.body.isFeatured !== undefined) product.isFeatured = req.body.isFeatured;
 
