@@ -148,17 +148,37 @@ const templates = {
           <a href="${frontendUrl}/orders" class="btn">Track Your Order</a>
         </div>`),
 
-    shippingNotification: ({ customerName, orderId, trackingUrl, frontendUrl = 'https://xrobofly.com' }) => baseLayout(`
+    shippingNotification: ({ customerName, orderId, trackingUrl, products = [], totalAmount, frontendUrl = 'https://xrobofly.com' }) => baseLayout(`
         <h2>Your Order Has Shipped! 🚚</h2>
         <p>Hi <strong>${customerName}</strong>, great news — your order is on its way!</p>
         <div class="info">📦 Order ID: <strong>${orderId}</strong></div>
-        ${trackingUrl ? `
-        <p>You can track your package in real time using the button below:</p>
-        <div style="text-align:center;margin:24px 0;">
-          <a href="${trackingUrl}" class="btn" style="background:#f97316;">Track My Package 📍</a>
-        </div>` : ''}
-        <p>You can also view your order details anytime from your account:</p>
-        <div style="text-align:center;margin-top:16px;">
+
+        ${products.length ? `
+        <h3 style="margin-top:24px;color:#111;">Items in This Shipment</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <thead><tr style="background:#f9fafb;">
+            <th style="padding:8px;text-align:left;color:#555;">Product</th>
+            <th style="padding:8px;text-align:center;color:#555;">Qty</th>
+            <th style="padding:8px;text-align:right;color:#555;">Price</th>
+          </tr></thead>
+          <tbody>
+            ${products.map(p => `
+            <tr style="border-top:1px solid #eee;">
+              <td style="padding:8px;">${p.name}</td>
+              <td style="padding:8px;text-align:center;">${p.quantity}</td>
+              <td style="padding:8px;text-align:right;">&#8377;${p.price}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+        ${totalAmount ? `<div style="text-align:right;font-weight:bold;font-size:15px;padding:8px;border-top:2px solid #f97316;color:#f97316;">Total: &#8377;${totalAmount}</div>` : ''}
+        ` : ''}
+
+        <div style="text-align:center;margin:28px 0 8px;">
+          <a href="${trackingUrl}" class="btn" style="background:#f97316;font-size:15px;padding:14px 32px;">📍 Track My Package</a>
+        </div>
+        <p style="text-align:center;font-size:12px;color:#888;">Or copy this link: <a href="${trackingUrl}" style="color:#f97316;">${trackingUrl}</a></p>
+
+        <div style="text-align:center;margin-top:20px;">
           <a href="${frontendUrl}/orders" class="btn" style="background:#111;">View My Orders</a>
         </div>
         <p style="color:#888;font-size:13px;margin-top:24px;">If you have any questions, feel free to reply to this email.</p>`),

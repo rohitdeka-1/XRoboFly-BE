@@ -195,7 +195,8 @@ export const updateOrderStatus = async (req, res) => {
 			orderId,
 			updateFields,
 			{ new: true }
-		).populate('user', 'name email');
+		).populate('user', 'name email')
+		 .populate('products.product', 'name coverImage price');
 
 		if (!order) {
 			return res.status(404).json({
@@ -207,6 +208,11 @@ export const updateOrderStatus = async (req, res) => {
 		// Send shipping notification email
 		if (status === 'shipped' && order.user?.email) {
 			try {
+				const products = (order.products || []).map(item => ({
+					name: item.product?.name || 'Product',
+					quantity: item.quantity,
+					price: item.price?.toLocaleString('en-IN'),
+				}));
 				await sendMail(
 					order.user.email,
 					'Your XRoboFly Order Has Been Shipped! 🚚',
@@ -215,6 +221,8 @@ export const updateOrderStatus = async (req, res) => {
 						customerName: order.user.name,
 						orderId: order._id,
 						trackingUrl: trackingUrl || order.trackingUrl || null,
+						products,
+						totalAmount: order.totalAmount?.toLocaleString('en-IN'),
 						frontendUrl: process.env.FRONTEND_URL?.split(',').find(u => u.startsWith('https://'))?.trim() || 'https://xrobofly.com',
 					}
 				);
@@ -250,7 +258,8 @@ export const updateTrackingUrl = async (req, res) => {
 			orderId,
 			{ trackingUrl },
 			{ new: true }
-		).populate('user', 'name email');
+		).populate('user', 'name email')
+		 .populate('products.product', 'name coverImage price');
 
 		if (!order) {
 			return res.status(404).json({ success: false, message: 'Order not found' });
@@ -259,17 +268,26 @@ export const updateTrackingUrl = async (req, res) => {
 		// Notify customer only when explicitly requested
 		if (notify && trackingUrl && order.user?.email) {
 			try {
+				const products = (order.products || []).map(item => ({
+					name: item.product?.name || 'Product',
+					quantity: item.quantity,
+					price: item.price?.toLocaleString('en-IN'),
+					image: item.product?.coverImage,
+				}));
 				await sendMail(
 					order.user.email,
-					'Tracking Link Updated - XRoboFly Order #' + order._id,
+					'Your XRoboFly Order Has Shipped! 🚚 — Tracking Available',
 					'shippingNotification',
 					{
 						customerName: order.user.name,
 						orderId: order._id,
 						trackingUrl,
+						products,
+						totalAmount: order.totalAmount?.toLocaleString('en-IN'),
 						frontendUrl: process.env.FRONTEND_URL?.split(',').find(u => u.startsWith('https://'))?.trim() || 'https://xrobofly.com',
 					}
 				);
+				console.log('✅ Tracking notification sent to', order.user.email);
 			} catch (emailErr) {
 				console.error('Failed to send tracking notification email:', emailErr);
 			}
