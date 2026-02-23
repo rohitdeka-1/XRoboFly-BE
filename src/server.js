@@ -75,10 +75,9 @@ app.use(globalLimiter);
 // Note: Increased to 50mb to support product uploads with images
 app.use(bodyParser.json({ 
     limit: '50mb',
-    verify: (req, res, buf) => {
-        if (req.originalUrl === '/api/v1/shipping/webhook') {
-            return true;
-        }
+    verify: (req, _res, buf) => {
+        // Store raw body for webhook signature verification
+        req.rawBody = buf.toString('utf8');
     }
 }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));

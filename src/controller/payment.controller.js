@@ -1,10 +1,24 @@
 import Cashfree from "../lib/cashfree.js";
 import Order from "../models/Order.model.js";
 import { Product } from "../models/Product.model.js";
-import { User } from "../models/User.model.js";
 import { sendMail } from "../services/mailer.services.js";
-import Coupon from "../models/Coupon.model.js";
 import { createShipmentForOrder } from "./shiprocket.controller.js";
+import { redis } from "../lib/redis.js";
+import crypto from "crypto";
+
+const PENDING_ORDER_TTL = 3600; // 1 hour in seconds
+const PENDING_KEY = (id) => `pending_order:${id}`;
+
+// Verify Cashfree webhook HMAC-SHA256 signature
+const verifyCashfreeWebhook = (rawBody, timestamp, signature) => {
+  if (!process.env.CASHFREE_SECRET_KEY || !rawBody || !timestamp || !signature) return false;
+  const payload = timestamp + rawBody;
+  const expected = crypto
+    .createHmac('sha256', process.env.CASHFREE_SECRET_KEY)
+    .update(payload)
+    .digest('base64');
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+};
 
 // Normalize Cashfree payment_group to our payment method
 const normalizePaymentMethod = (paymentGroup) => {
@@ -26,7 +40,7 @@ const normalizePaymentMethod = (paymentGroup) => {
  */
 export const createCheckoutSession = async (req, res) => {
   try {
-    const { customerDetails, shippingAddress, products, couponCode } = req.body;
+    const { customerDetails, shippingAddress, products } = req.body;
 
     // Validate request
     if (!customerDetails || !shippingAddress || !products || products.length === 0) {
@@ -106,52 +120,8 @@ export const createCheckoutSession = async (req, res) => {
     // Calculate tax (18% GST)
     const tax = Math.round(subtotal * 0.18);
 
-    // Apply coupon if provided
-    let discount = 0;
-    let appliedCoupon = null;
-
-    if (couponCode) {
-      const coupon = await Coupon.findOne({
-        code: couponCode.toUpperCase(),
-        isActive: true,
-        expiryDate: { $gt: new Date() },
-      });
-
-      if (coupon) {
-        if (coupon.userId && req.user && coupon.userId.toString() !== req.user._id.toString()) {
-          return res.status(400).json({
-            success: false,
-            message: "This coupon is not valid for your account",
-          });
-        }
-
-        if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
-          return res.status(400).json({
-            success: false,
-            message: "Coupon usage limit exceeded",
-          });
-        }
-
-        // Calculate discount
-        discount = Math.round((subtotal * coupon.discountPercentage) / 100);
-        appliedCoupon = {
-          code: coupon.code,
-          discountPercentage: coupon.discountPercentage,
-          discountAmount: discount,
-        };
-
-        // Increment usage count
-        coupon.usageCount += 1;
-        await coupon.save();
-      } else {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid or expired coupon code",
-        });
-      }
-    }
-
-    const totalAmount = subtotal + shipping + tax - discount;
+    const discount = 0;
+    const totalAmount = subtotal + shipping + tax;
 
     // Generate unique order ID
     const orderId = `XRF_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
@@ -181,30 +151,32 @@ export const createCheckoutSession = async (req, res) => {
 
     console.log("✅ Cashfree order created successfully");
 
-    // Store order metadata temporarily (to be used in checkout-success)
-    // In production, consider using Redis or similar for temporary storage
-    global.pendingOrders = global.pendingOrders || {};
-    global.pendingOrders[orderId] = {
-      userId: req.user?._id,
-      customerDetails,
-      shippingAddress,
-      products: orderProducts,
-      subtotal,
-      shipping,
-      tax,
-      discount,
-      totalAmount,
-      appliedCoupon,
-      createdAt: new Date(),
-    };
+    // Store order metadata in Redis (survives PM2 cluster restarts)
+    await redis.set(
+      PENDING_KEY(orderId),
+      JSON.stringify({
+        userId: req.user?._id?.toString(),
+        customerDetails,
+        shippingAddress,
+        products: orderProducts,
+        subtotal,
+        shipping,
+        tax,
+        discount,
+        totalAmount,
+        createdAt: Date.now(),
+      }),
+      'EX',
+      PENDING_ORDER_TTL
+    );
 
-    // Clean up old pending orders (older than 1 hour)
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
-    Object.keys(global.pendingOrders).forEach(key => {
-      if (global.pendingOrders[key].createdAt < oneHourAgo) {
-        delete global.pendingOrders[key];
-      }
-    });
+    // Legacy in-memory cleanup (no longer used for storage)
+    if (global.pendingOrders) {
+      const oneHourAgo = Date.now() - 60 * 60 * 1000;
+      Object.keys(global.pendingOrders).forEach(key => {
+        if (global.pendingOrders[key]?.createdAt < oneHourAgo) delete global.pendingOrders[key];
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -272,12 +244,21 @@ export const checkoutSuccess = async (req, res) => {
       });
     }
 
-    // Get pending order data
-    const orderData = global.pendingOrders?.[orderId];
+    // Get pending order data from Redis
+    const raw = await redis.get(PENDING_KEY(orderId));
+    const orderData = raw ? JSON.parse(raw) : null;
     if (!orderData) {
       return res.status(400).json({
         success: false,
         message: "Order data not found. Session may have expired.",
+      });
+    }
+
+    // Ownership check — prevent one user claiming another user's pending order
+    if (orderData.userId && req.user?._id?.toString() !== orderData.userId) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized",
       });
     }
 
@@ -297,16 +278,22 @@ export const checkoutSuccess = async (req, res) => {
       cashfreePaymentId: latestPayment.cf_payment_id,
     });
 
-    // Decrease product stock
+    // Atomically decrement stock only if sufficient quantity remains
     for (const item of orderData.products) {
-      await Product.findByIdAndUpdate(item.productId, {
-        $inc: { stock: -item.quantity },
-      });
-    }
-
-    // Auto-generate coupon for orders >= ₹20,000
-    if (orderData.totalAmount >= 20000) {
-      await createNewCoupon(orderData.userId, orderData.customerDetails.email, newOrder._id);
+      const updated = await Product.findOneAndUpdate(
+        { _id: item.productId, stock: { $gte: item.quantity } },
+        { $inc: { stock: -item.quantity } },
+        { new: true }
+      );
+      if (!updated) {
+        // Roll back the order — stock ran out between checkout init and confirmation
+        await Order.findByIdAndDelete(newOrder._id);
+        await redis.del(PENDING_KEY(orderId));
+        return res.status(409).json({
+          success: false,
+          message: `Insufficient stock for ${item.name}. Please update your cart and try again.`,
+        });
+      }
     }
 
     // Send order confirmation email
@@ -332,8 +319,8 @@ export const checkoutSuccess = async (req, res) => {
       console.error("Failed to create Shiprocket shipment:", shipmentError);
     }
 
-    // Clean up pending order
-    delete global.pendingOrders[orderId];
+    // Clean up Redis pending order
+    await redis.del(PENDING_KEY(orderId));
 
     console.log("✅ Order created successfully:", newOrder._id);
 
@@ -358,6 +345,16 @@ export const checkoutSuccess = async (req, res) => {
  */
 export const cashfreeWebhook = async (req, res) => {
   try {
+    // Verify Cashfree webhook signature
+    const timestamp = req.headers['x-webhook-timestamp'];
+    const signature = req.headers['x-webhook-signature'];
+    if (timestamp && signature) {
+      if (!verifyCashfreeWebhook(req.rawBody || '', timestamp, signature)) {
+        console.warn('❌ Webhook signature mismatch — rejecting request');
+        return res.status(401).json({ success: false, message: 'Invalid signature' });
+      }
+    }
+
     const { type, data } = req.body;
 
     console.log("📥 Webhook received:", type);
@@ -379,25 +376,22 @@ export const cashfreeWebhook = async (req, res) => {
     // Update order status based on webhook type
     switch (type) {
       case "PAYMENT_SUCCESS_WEBHOOK":
-        if (order.paymentStatus !== "paid") {
-          order.paymentStatus = "paid";
-          order.paymentMethod = normalizePaymentMethod(data.payment.payment_group);
-          order.cashfreePaymentId = data.payment.cf_payment_id;
+        if (order.orderStatus === 'pending') {
+          order.orderStatus = 'processing';
+          order.cashfreePaymentId = data.payment?.cf_payment_id || order.cashfreePaymentId;
           await order.save();
           console.log("✅ Payment success webhook processed");
         }
         break;
 
       case "PAYMENT_FAILED_WEBHOOK":
-        order.paymentStatus = "failed";
-        order.status = "cancelled";
+        order.orderStatus = 'cancelled';
         await order.save();
         console.log("❌ Payment failed webhook processed");
         break;
 
       case "PAYMENT_USER_DROPPED_WEBHOOK":
-        order.paymentStatus = "failed";
-        order.status = "cancelled";
+        order.orderStatus = 'cancelled';
         await order.save();
         console.log("⚠️ Payment dropped webhook processed");
         break;
@@ -415,40 +409,4 @@ export const cashfreeWebhook = async (req, res) => {
   }
 };
 
-/**
- * Helper function to create coupon for high-value orders
- */
-async function createNewCoupon(userId, email, orderId) {
-  try {
-    const couponCode = `XRF${Date.now().toString().slice(-6)}`;
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 30); // 30 days validity
 
-    await Coupon.create({
-      code: couponCode,
-      discountPercentage: 5,
-      expirationDate: expiryDate,
-      isActive: true,
-      userId,
-      usageLimit: 1,
-      usageCount: 0,
-    });
-
-    // Send coupon email
-    await sendMail(
-      email,
-      "You've Earned a Discount Coupon! - XRoboFly",
-      "coupon",
-      {
-        name: "Valued Customer",
-        couponCode,
-        discountPercent: 5,
-        expiryDate: expiryDate.toLocaleDateString(),
-      }
-    );
-
-    console.log("✅ Coupon created and sent:", couponCode);
-  } catch (error) {
-    console.error("Failed to create coupon:", error);
-  }
-}
