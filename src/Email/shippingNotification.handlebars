@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin:0; padding:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; background:#f3f4f6; }
+    .container { max-width:600px; margin:0 auto; background:#ffffff; }
+    .header { background:#1f2937; padding:30px 20px; text-align:center; }
+    .header h1 { color:#ffffff; margin:0; font-size:22px; font-weight:700; }
+    .content { padding:36px 30px; }
+    .truck-icon { text-align:center; margin-bottom:20px; font-size:56px; }
+    .title { font-size:26px; font-weight:bold; color:#1f2937; text-align:center; margin-bottom:8px; }
+    .subtitle { font-size:15px; color:#6b7280; text-align:center; margin-bottom:28px; }
+    .info-box { background:#f9fafb; border-radius:10px; padding:20px; margin-bottom:24px; border-left:4px solid #f97316; }
+    .info-row { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid #e5e7eb; font-size:14px; }
+    .info-row:last-child { border-bottom:none; }
+    .info-label { color:#6b7280; }
+    .info-value { color:#1f2937; font-weight:600; }
+    .track-btn { display:block; background:linear-gradient(135deg,#f97316,#ea580c); color:#ffffff; text-decoration:none; padding:15px 30px; border-radius:10px; font-weight:700; font-size:16px; text-align:center; margin:24px 0; box-shadow:0 4px 14px rgba(249,115,22,0.35); }
+    .no-track { background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:16px; text-align:center; color:#9a3412; font-size:14px; margin:20px 0; }
+    .steps { display:flex; justify-content:space-between; margin:24px 0; }
+    .step { flex:1; text-align:center; position:relative; }
+    .step-dot { width:32px; height:32px; border-radius:50%; margin:0 auto 6px; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:bold; }
+    .step-dot.done { background:#f97316; color:#fff; }
+    .step-dot.pending { background:#e5e7eb; color:#9ca3af; }
+    .step-line { position:absolute; top:16px; left:50%; right:-50%; height:2px; z-index:0; }
+    .step-label { font-size:11px; color:#6b7280; margin-top:4px; }
+    .footer { background:#f9fafb; padding:24px 30px; text-align:center; border-top:1px solid #e5e7eb; }
+    .footer p { font-size:13px; color:#6b7280; margin:4px 0; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div style="width:52px;height:52px;margin:0 auto 12px;background:linear-gradient(135deg,#f97316,#ea580c);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;">🚁</div>
+    <h1>XRoboFly</h1>
+  </div>
+
+  <div class="content">
+    <div class="truck-icon">🚚</div>
+    <h2 class="title">Your Order Is On Its Way!</h2>
+    <p class="subtitle">Hey {{customerName}}, great news — your order has been shipped and is heading to you.</p>
+
+    <!-- Order Info -->
+    <div class="info-box">
+      <div class="info-row">
+        <span class="info-label">Order ID</span>
+        <span class="info-value">#{{orderId}}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Status</span>
+        <span class="info-value" style="color:#f97316;">Shipped ✓</span>
+      </div>
+    </div>
+
+    <!-- Progress Steps -->
+    <table width="100%" style="margin:24px 0;" cellspacing="0" cellpadding="0">
+      <tr>
+        <td width="25%" align="center">
+          <div style="width:32px;height:32px;border-radius:50%;background:#f97316;color:#fff;font-size:14px;font-weight:bold;line-height:32px;text-align:center;margin:0 auto;">✓</div>
+          <div style="font-size:10px;color:#f97316;font-weight:600;margin-top:5px;">Placed</div>
+        </td>
+        <td align="center" valign="middle">
+          <div style="height:2px;background:#f97316;"></div>
+        </td>
+        <td width="25%" align="center">
+          <div style="width:32px;height:32px;border-radius:50%;background:#f97316;color:#fff;font-size:14px;font-weight:bold;line-height:32px;text-align:center;margin:0 auto;">✓</div>
+          <div style="font-size:10px;color:#f97316;font-weight:600;margin-top:5px;">Processing</div>
+        </td>
+        <td align="center" valign="middle">
+          <div style="height:2px;background:#f97316;"></div>
+        </td>
+        <td width="25%" align="center">
+          <div style="width:32px;height:32px;border-radius:50%;background:#f97316;color:#fff;font-size:14px;font-weight:bold;line-height:32px;text-align:center;margin:0 auto;">🚚</div>
+          <div style="font-size:10px;color:#f97316;font-weight:600;margin-top:5px;">Shipped</div>
+        </td>
+        <td align="center" valign="middle">
+          <div style="height:2px;background:#e5e7eb;"></div>
+        </td>
+        <td width="25%" align="center">
+          <div style="width:32px;height:32px;border-radius:50%;background:#e5e7eb;color:#9ca3af;font-size:14px;font-weight:bold;line-height:32px;text-align:center;margin:0 auto;">○</div>
+          <div style="font-size:10px;color:#9ca3af;margin-top:5px;">Delivered</div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Tracking Button or Note -->
+    {{#if trackingUrl}}
+    <a href="{{trackingUrl}}" class="track-btn">📦 Track Your Order</a>
+    <p style="text-align:center;font-size:12px;color:#9ca3af;margin-top:-12px;">Click to see real-time tracking updates</p>
+    {{else}}
+    <div class="no-track">
+      <p style="margin:0;font-weight:600;">Tracking details will be shared soon</p>
+      <p style="margin:4px 0 0;">You can also check your order status in the app.</p>
+    </div>
+    {{/if}}
+
+    <!-- View Order Button -->
+    <a href="{{frontendUrl}}/orders" style="display:block;background:#1f2937;color:#fff;text-decoration:none;padding:12px 30px;border-radius:8px;font-weight:600;font-size:14px;text-align:center;margin-top:12px;">View Order Details</a>
+
+    <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:24px;line-height:1.6;">
+      Expected delivery within 3–7 business days.<br>
+      Questions? Email us at <a href="mailto:support@xrobofly.com" style="color:#f97316;">support@xrobofly.com</a>
+    </p>
+  </div>
+
+  <div class="footer">
+    <p>Thank you for shopping with XRoboFly!</p>
+    <p style="font-size:11px;margin-top:8px;">© 2025 XRoboFly. All rights reserved.</p>
+  </div>
+</div>
+</body>
+</html>

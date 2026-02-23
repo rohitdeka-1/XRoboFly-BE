@@ -117,6 +117,9 @@ const orderSchema = new mongoose.Schema({
     cashfreePaymentId: {
         type: String,
     },
+    trackingUrl: {
+        type: String,
+    },
     shipment: {
         shiprocketOrderId: {
             type: String,

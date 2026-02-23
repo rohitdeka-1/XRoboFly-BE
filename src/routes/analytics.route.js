@@ -5,6 +5,7 @@ import {
     getDailySalesData,
     getAllOrders,
     updateOrderStatus,
+    updateTrackingUrl,
     getAllUsers,
 } from "../controller/analytics.controller.js";
 
@@ -16,5 +17,6 @@ router.get("/sales", protectRoute, adminRoute, getDailySalesData);
 router.get("/orders", protectRoute, adminRoute, getAllOrders);
 router.get("/users", protectRoute, adminRoute, getAllUsers);
 router.put("/orders/:orderId/status", protectRoute, adminRoute, updateOrderStatus);
+router.put("/orders/:orderId/tracking", protectRoute, adminRoute, updateTrackingUrl);
 
 export default router;

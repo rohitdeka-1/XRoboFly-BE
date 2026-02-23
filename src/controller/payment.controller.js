@@ -300,12 +300,27 @@ export const checkoutSuccess = async (req, res) => {
     try {
       await sendMail(
         orderData.customerDetails.email,
-        "Order Confirmation - XRoboFly",
+        "Order Confirmed - XRoboFly #" + newOrder._id,
         "orderConfirmation",
         {
-          name: orderData.customerDetails.name,
+          customerName: orderData.customerDetails.name,
           orderId: newOrder._id,
-          totalAmount: orderData.totalAmount,
+          orderDate: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+          paymentId: latestPayment.cf_payment_id || orderId,
+          products: orderData.products.map(p => ({
+            name: p.name,
+            quantity: p.quantity,
+            price: p.price.toLocaleString('en-IN'),
+            image: p.image,
+          })),
+          shippingAddress: orderData.shippingAddress,
+          billingAddress: orderData.shippingAddress,
+          subtotal: orderData.subtotal.toLocaleString('en-IN'),
+          tax: orderData.tax.toLocaleString('en-IN'),
+          shipping: orderData.shipping === 0 ? 'FREE' : '₹' + orderData.shipping,
+          discount: orderData.discount > 0 ? orderData.discount.toLocaleString('en-IN') : null,
+          totalAmount: orderData.totalAmount.toLocaleString('en-IN'),
+          frontendUrl: process.env.FRONTEND_URL?.split(',').find(u => u.startsWith('https://'))?.trim() || 'https://xrobofly.com',
         }
       );
     } catch (emailError) {

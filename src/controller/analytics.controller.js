@@ -1,6 +1,7 @@
 import Order from "../models/Order.model.js";
 import {Product} from "../models/Product.model.js";
 import { User } from "../models/User.model.js";
+import { sendMail } from "../services/mailer.services.js";
 
 export const getAnalyticsData = async (req, res) => {
 	try {
@@ -176,7 +177,7 @@ export const getAllOrders = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
 	try {
 		const { orderId } = req.params;
-		const { status } = req.body;
+		const { status, trackingUrl } = req.body;
 
 		const validStatuses = ["pending", "processing", "shipped", "delivered", "cancelled"];
 		
@@ -187,9 +188,12 @@ export const updateOrderStatus = async (req, res) => {
 			});
 		}
 
+		const updateFields = { orderStatus: status };
+		if (trackingUrl !== undefined) updateFields.trackingUrl = trackingUrl;
+
 		const order = await Order.findByIdAndUpdate(
 			orderId,
-			{ orderStatus: status },
+			updateFields,
 			{ new: true }
 		).populate('user', 'name email');
 
@@ -198,6 +202,25 @@ export const updateOrderStatus = async (req, res) => {
 				success: false,
 				message: "Order not found",
 			});
+		}
+
+		// Send shipping notification email
+		if (status === 'shipped' && order.user?.email) {
+			try {
+				await sendMail(
+					order.user.email,
+					'Your XRoboFly Order Has Been Shipped! 🚚',
+					'shippingNotification',
+					{
+						customerName: order.user.name,
+						orderId: order._id,
+						trackingUrl: trackingUrl || order.trackingUrl || null,
+						frontendUrl: process.env.FRONTEND_URL?.split(',').find(u => u.startsWith('https://'))?.trim() || 'https://xrobofly.com',
+					}
+				);
+			} catch (emailErr) {
+				console.error('Failed to send shipping notification email:', emailErr);
+			}
 		}
 
 		res.status(200).json({
@@ -213,6 +236,52 @@ export const updateOrderStatus = async (req, res) => {
 			success: false,
 			message: "Failed to update order status",
 		});
+	}
+};
+
+// Update tracking URL only (also sends email notification)
+export const updateTrackingUrl = async (req, res) => {
+	try {
+		const { orderId } = req.params;
+		const { trackingUrl } = req.body;
+
+		if (!trackingUrl) {
+			return res.status(400).json({ success: false, message: 'trackingUrl is required' });
+		}
+
+		const order = await Order.findByIdAndUpdate(
+			orderId,
+			{ trackingUrl },
+			{ new: true }
+		).populate('user', 'name email');
+
+		if (!order) {
+			return res.status(404).json({ success: false, message: 'Order not found' });
+		}
+
+		// Notify customer
+		if (order.user?.email) {
+			try {
+				await sendMail(
+					order.user.email,
+					'Tracking Link Updated - XRoboFly Order #' + order._id,
+					'shippingNotification',
+					{
+						customerName: order.user.name,
+						orderId: order._id,
+						trackingUrl,
+						frontendUrl: process.env.FRONTEND_URL?.split(',').find(u => u.startsWith('https://'))?.trim() || 'https://xrobofly.com',
+					}
+				);
+			} catch (emailErr) {
+				console.error('Failed to send tracking notification email:', emailErr);
+			}
+		}
+
+		res.status(200).json({ success: true, message: 'Tracking URL updated', data: order });
+	} catch (error) {
+		console.error('Error in updateTrackingUrl:', error);
+		res.status(500).json({ success: false, message: 'Failed to update tracking URL' });
 	}
 };
 
