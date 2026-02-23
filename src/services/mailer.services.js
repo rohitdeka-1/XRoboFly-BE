@@ -100,12 +100,68 @@ const templates = {
         <p>Your password has been updated. You can now log in with your new password.</p>
         <a href="https://xrobofly.com/signin" class="btn">Login Now</a>`),
 
-    orderConfirmation: ({ name, orderId, totalAmount }) => baseLayout(`
-        <h2>Order Confirmed! 📦</h2>
-        <p>Hi <strong>${name}</strong>, your order has been placed.</p>
-        <div class="info">Order ID: <strong>${orderId}</strong></div>
-        <p>Total: <strong>₹${totalAmount}</strong></p>
-        <a href="https://xrobofly.com/orders" class="btn">Track Order</a>`),
+    orderConfirmation: ({ customerName, orderId, orderDate, paymentId, products = [], shippingAddress, subtotal, tax, shipping, discount, totalAmount, frontendUrl = 'https://xrobofly.com' }) => baseLayout(`
+        <h2>Order Confirmed! 🎉</h2>
+        <p>Hi <strong>${customerName}</strong>, thank you for your order! We've received it and will start processing soon.</p>
+        <div class="info">
+          📦 Order ID: <strong>${orderId}</strong><br/>
+          📅 Date: ${orderDate}<br/>
+          💳 Payment Ref: ${paymentId}
+        </div>
+
+        <h3 style="margin-top:24px;color:#111;">Items Ordered</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <thead><tr style="background:#f9fafb;">
+            <th style="padding:8px;text-align:left;color:#555;">Product</th>
+            <th style="padding:8px;text-align:center;color:#555;">Qty</th>
+            <th style="padding:8px;text-align:right;color:#555;">Price</th>
+          </tr></thead>
+          <tbody>
+            ${(products || []).map(p => `
+            <tr style="border-top:1px solid #eee;">
+              <td style="padding:8px;">${p.name}</td>
+              <td style="padding:8px;text-align:center;">${p.quantity}</td>
+              <td style="padding:8px;text-align:right;">₹${p.price}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+
+        <table style="width:100%;font-size:14px;margin-top:12px;border-top:2px solid #eee;padding-top:8px;">
+          <tr><td style="padding:4px 8px;color:#666;">Subtotal</td><td style="text-align:right;padding:4px 8px;">₹${subtotal}</td></tr>
+          <tr><td style="padding:4px 8px;color:#666;">Tax</td><td style="text-align:right;padding:4px 8px;">₹${tax}</td></tr>
+          <tr><td style="padding:4px 8px;color:#666;">Shipping</td><td style="text-align:right;padding:4px 8px;">${shipping}</td></tr>
+          ${discount ? `<tr><td style="padding:4px 8px;color:#22c55e;">Discount</td><td style="text-align:right;padding:4px 8px;color:#22c55e;">- ₹${discount}</td></tr>` : ''}
+          <tr style="font-weight:bold;font-size:16px;border-top:2px solid #f97316;">
+            <td style="padding:8px;">Total</td><td style="text-align:right;padding:8px;color:#f97316;">₹${totalAmount}</td>
+          </tr>
+        </table>
+
+        ${shippingAddress ? `
+        <h3 style="margin-top:24px;color:#111;">Delivery Address</h3>
+        <div class="info">
+          ${shippingAddress.fullName}<br/>
+          ${shippingAddress.addressLine1}${shippingAddress.addressLine2 ? ', ' + shippingAddress.addressLine2 : ''}<br/>
+          ${shippingAddress.city}, ${shippingAddress.state} – ${shippingAddress.pincode}
+        </div>` : ''}
+
+        <div style="text-align:center;margin-top:28px;">
+          <a href="${frontendUrl}/orders" class="btn">Track Your Order</a>
+        </div>`),
+
+    shippingNotification: ({ customerName, orderId, trackingUrl, frontendUrl = 'https://xrobofly.com' }) => baseLayout(`
+        <h2>Your Order Has Shipped! 🚚</h2>
+        <p>Hi <strong>${customerName}</strong>, great news — your order is on its way!</p>
+        <div class="info">📦 Order ID: <strong>${orderId}</strong></div>
+        ${trackingUrl ? `
+        <p>You can track your package in real time using the button below:</p>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="${trackingUrl}" class="btn" style="background:#f97316;">Track My Package 📍</a>
+        </div>` : ''}
+        <p>You can also view your order details anytime from your account:</p>
+        <div style="text-align:center;margin-top:16px;">
+          <a href="${frontendUrl}/orders" class="btn" style="background:#111;">View My Orders</a>
+        </div>
+        <p style="color:#888;font-size:13px;margin-top:24px;">If you have any questions, feel free to reply to this email.</p>`),
 };
 
 // ─── sendMail ─────────────────────────────────────────────────────────────────

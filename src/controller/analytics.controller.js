@@ -243,11 +243,8 @@ export const updateOrderStatus = async (req, res) => {
 export const updateTrackingUrl = async (req, res) => {
 	try {
 		const { orderId } = req.params;
-		const { trackingUrl } = req.body;
-
-		if (!trackingUrl) {
-			return res.status(400).json({ success: false, message: 'trackingUrl is required' });
-		}
+		// trackingUrl can be empty string to clear it; notify defaults to true
+		const { trackingUrl = '', notify = true } = req.body;
 
 		const order = await Order.findByIdAndUpdate(
 			orderId,
@@ -259,8 +256,8 @@ export const updateTrackingUrl = async (req, res) => {
 			return res.status(404).json({ success: false, message: 'Order not found' });
 		}
 
-		// Notify customer
-		if (order.user?.email) {
+		// Notify customer only when explicitly requested
+		if (notify && trackingUrl && order.user?.email) {
 			try {
 				await sendMail(
 					order.user.email,
@@ -278,7 +275,10 @@ export const updateTrackingUrl = async (req, res) => {
 			}
 		}
 
-		res.status(200).json({ success: true, message: 'Tracking URL updated', data: order });
+		const msg = trackingUrl
+			? (notify ? 'Tracking link saved & customer notified' : 'Tracking link updated (no email sent)')
+			: 'Tracking link cleared';
+		res.status(200).json({ success: true, message: msg, data: order });
 	} catch (error) {
 		console.error('Error in updateTrackingUrl:', error);
 		res.status(500).json({ success: false, message: 'Failed to update tracking URL' });
