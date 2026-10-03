@@ -72,6 +72,9 @@ jobs:
       - name: Set Job status
         id: result
         run: echo "status=passed" >> "${GITHUB_OUTPUT}"  # Set Job Output
+      
+      - name: Show result
+        run: echo "the status was ${{steps.result.outputs.status}}"
         
   build:
     runs-on: ubuntu-latest
