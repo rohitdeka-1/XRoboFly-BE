@@ -43,6 +43,10 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    outputs:
+      test-result: ${{steps.result.outputs.status}} #Job outputs
+
     steps:
       - name: Show GitHub information  #Contexts & Expressions
         run: |
@@ -64,6 +68,10 @@ jobs:
 
       - name: Run tests
         run: npm run test
+
+      - name: Set Job status
+        id: result
+        run: echo "status=passed" >> "${GITHUB_OUTPUT}"  # Set Job Output
         
   build:
     runs-on: ubuntu-latest
