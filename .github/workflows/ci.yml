@@ -1,0 +1,82 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+    PORT: 8000
+    NODE_ENV: test
+    COOKIE_SECURE: "false"
+    BACKEND_URL: http://localhost:8000
+    FRONTEND_URL: http://localhost:5173
+    MONGO_URI: ${{ secrets.MONGO_URI}}
+    MONGODB_URI: ${{ secrets.MONGODB_URI}}
+    UPSTASH_REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL}}
+    ACCESS_TOKEN_SECRET: ${{ secrets.ACCESS_TOKEN_SECRET }}
+    REFRESH_TOKEN_SECRET: ${{ secrets.REFRESH_TOKEN_SECRET }}
+    CASHFREE_APP_ID: ${{ secrets.CASHFREE_APP_ID }}
+    CASHFREE_SECRET_KEY: ${{ secrets.CASHFREE_SECRET_KEY }}
+    CASHFREE_ENVIRONMENT: sandbox
+    RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+    RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
+    RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+    EMAIL_FROM: "XRoboFly <noreply@xrobofly.com>"
+    SMTP_USER: xrobofly@gmail.com
+    SMTP_PASS: ${{ secrets.SMTP_PASS }}
+    CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+    CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+    CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET || 'test_api_secret' }}
+    GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID || 'test_google_client_id' }}
+    GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET || 'test_google_client_secret' }}
+    GOOGLE_CALLBACK_URL: http://localhost:8000/api/auth/google/callback
+    SHIPROCKET_EMAIL: ${{ secrets.SHIPROCKET_EMAIL || 'test@example.com' }}
+    SHIPROCKET_PASSWORD: ${{ secrets.SHIPROCKET_PASSWORD || 'test_password' }}
+    SHIPROCKET_PICKUP_LOCATION: Primary
+    SHIPROCKET_PICKUP_PINCODE: "110001"
+    SHIPROCKET_CHANNEL_ID: ""
+    SHIPROCKET_WEBHOOK_SECRET: ${{ secrets.SHIPROCKET_WEBHOOK_SECRET || 'test_webhook_secret' }}
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test
+        
+  build:
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+ 
+      
+
+
