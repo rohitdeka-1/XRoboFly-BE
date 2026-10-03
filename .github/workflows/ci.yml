@@ -73,13 +73,18 @@ jobs:
         id: result
         run: echo "status=passed" >> "${GITHUB_OUTPUT}"  # Set Job Output
       
-      - name: Show result
-        run: echo "the status was ${{steps.result.outputs.status}}"
         
   build:
     runs-on: ubuntu-latest
     needs: [test]
-    steps:
+    steps: 
+       #Conditional execution
+      - name: Check if tests passed
+        run: |  
+          if [ "${{ needs.test.outputs.test-result }}" != "passed" ]; then    
+            echo "Tests did not pass, skipping build"
+            exit 1
+          fi
       - name: Code checkout
         uses: actions/checkout@v4
 
